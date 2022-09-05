@@ -14,6 +14,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
+import java.util.concurrent.TimeUnit;
+
 import static com.example.demo.security.ApplicationUserPermission.COURSE_WRITE;
 import static com.example.demo.security.ApplicationUserRole.*;
 
@@ -37,7 +39,7 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
 
 
         http
-                .csrf().disable() //
+                .csrf().disable() // cross site request forgery - po loginu se posílá CSRF token, pokud request neobsahuje tento token tak není request udělán - ochrana před třetí stranou
                 .authorizeRequests()
                 .antMatchers("/login/**") // - se kterými endpointy chci něco udělat
                 .permitAll() // - co s nimi chci udělat
@@ -51,7 +53,23 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest() // - každý požadavek...
                 .authenticated() // - ... musí byt autentikovan
                 .and()
-                .httpBasic();   //  - typ kterým chceme autentikovat
+                .formLogin()  //  - typ kterým chceme autentikovat - httpBasic(), formLogin()
+                    .loginPage("/login") //  - tady overriduju defaultní formulář login a vkládám endpoint s mým formulářem
+                    .defaultSuccessUrl("/courses",true) //default page after successful login
+                    .passwordParameter("password")
+                    .usernameParameter("username")
+                .and()
+                .rememberMe()
+                    .tokenValiditySeconds((int)TimeUnit.DAYS.toSeconds(21)) //defaults to 2 weeks
+                    .key("somethingverysecured")
+                    .rememberMeParameter("remember-me")
+                .and()
+                .logout()
+                    .logoutUrl("/logout") //what is the default page for logout
+                .clearAuthentication(true)
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID", "remember-me")
+                .logoutSuccessUrl("/login"); // default page after successful logout
     }
 
     // Zde budu vytahovat uživatele z databaze
