@@ -1,6 +1,7 @@
 package com.example.demo.security;
 
 import com.example.demo.auth.ApplicationUserService;
+import com.example.demo.jwt.JwtUsernameAndPasswordAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +11,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.preauth.j2ee.J2eePreAuthenticatedProcessingFilter;
 
 import java.util.concurrent.TimeUnit;
 
@@ -39,25 +42,29 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
 
         http
                 .csrf().disable() // cross site request forgery - po loginu se posílá CSRF token, pokud request neobsahuje tento token tak není request udělán - ochrana před třetí stranou
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)// tady změním session state
+                .and()
+                .addFilter(new JwtUsernameAndPasswordAuthenticationFilter(authenticationManager()))// tady přidám do cesty vlastní filtr a authenticationmanager z extendnuté WebSecurityConfigurerAdapter
                 .authorizeRequests()
                 .antMatchers("/login/**") // - se kterými endpointy chci něco udělat
                 .permitAll() // - co s nimi chci udělat
                 .antMatchers("/api/**")// tento endpoint
                 .hasRole(STUDENT.name()) // povoluji dosáhnout jen userovi s rolí student
-                // tyto jsou vyměněny za @PreAuthorized u jednotlivých endpointu
-                    //.antMatchers(HttpMethod.DELETE, "/management/api/**").hasAuthority(COURSE_WRITE.getPermission())
-                    //.antMatchers(HttpMethod.POST, "/management/api/**").hasAuthority(COURSE_WRITE.getPermission())
-                    //.antMatchers(HttpMethod.PUT, "/management/api/**").hasAuthority(COURSE_WRITE.getPermission())
-                    //.antMatchers(HttpMethod.GET, "/management/api/**").hasAnyRole(ADMIN.name(), ADMINTRAINEE.name())
+                /* tyto jsou vyměněny za @PreAuthorized u jednotlivých endpointu
+                    .antMatchers(HttpMethod.DELETE, "/management/api/**").hasAuthority(COURSE_WRITE.getPermission())
+                    .antMatchers(HttpMethod.POST, "/management/api/**").hasAuthority(COURSE_WRITE.getPermission())
+                    .antMatchers(HttpMethod.PUT, "/management/api/**").hasAuthority(COURSE_WRITE.getPermission())
+                    .antMatchers(HttpMethod.GET, "/management/api/**").hasAnyRole(ADMIN.name(), ADMINTRAINEE.name()) */
                 .anyRequest() // - každý požadavek...
-                .authenticated() // - ... musí byt autentikovan
-                .and()
+                .authenticated(); // - ... musí byt autentikovan
+                /* POUŽITO PŘI AUTENTIKACE PŘES FORM LOGIN
+                 .and()
                 .formLogin()  //  - typ kterým chceme autentikovat - httpBasic(), formLogin()
                     .loginPage("/login") //  - tady overriduju defaultní formulář login a vkládám endpoint s mým formulářem
                     .defaultSuccessUrl("/courses",true) //default page after successful login
                     .passwordParameter("password")
                     .usernameParameter("username")
-                .and()
+                 .and()
                 .rememberMe()
                     .tokenValiditySeconds((int)TimeUnit.DAYS.toSeconds(21)) //defaults to 2 weeks
                     .key("somethingverysecured")
@@ -69,6 +76,7 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID", "remember-me")
                 .logoutSuccessUrl("/login"); // default page after successful logout
+                 */
     }
 
     @Bean
