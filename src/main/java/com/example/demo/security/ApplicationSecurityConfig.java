@@ -1,6 +1,8 @@
 package com.example.demo.security;
 
 import com.example.demo.auth.ApplicationUserService;
+import com.example.demo.jwt.JwtConfig;
+import com.example.demo.jwt.JwtTokenVerifier;
 import com.example.demo.jwt.JwtUsernameAndPasswordAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -13,9 +15,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.preauth.j2ee.J2eePreAuthenticatedProcessingFilter;
 
-import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
 
 import static com.example.demo.security.ApplicationUserRole.*;
 
@@ -28,11 +29,15 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
     // injection of passwordencoder
     private final PasswordEncoder passwordEncoder;
     private final ApplicationUserService applicationUserService;
+    private final SecretKey secretKey;
+    private final JwtConfig jwtConfig;
 
     @Autowired
-    public ApplicationSecurityConfig(PasswordEncoder passwordEncoder, ApplicationUserService applicationUserService) {
+    public ApplicationSecurityConfig(PasswordEncoder passwordEncoder, ApplicationUserService applicationUserService, SecretKey secretKey, JwtConfig jwtConfig) {
         this.passwordEncoder = passwordEncoder;
         this.applicationUserService = applicationUserService;
+        this.secretKey = secretKey;
+        this.jwtConfig = jwtConfig;
     }
 
 
@@ -44,7 +49,8 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .csrf().disable() // cross site request forgery - po loginu se posílá CSRF token, pokud request neobsahuje tento token tak není request udělán - ochrana před třetí stranou
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)// tady změním session state
                 .and()
-                .addFilter(new JwtUsernameAndPasswordAuthenticationFilter(authenticationManager()))// tady přidám do cesty vlastní filtr a authenticationmanager z extendnuté WebSecurityConfigurerAdapter
+                .addFilter(new JwtUsernameAndPasswordAuthenticationFilter(authenticationManager(), jwtConfig, secretKey))// tady přidám do cesty vlastní filtr a authenticationmanager z extendnuté WebSecurityConfigurerAdapter
+                .addFilterAfter(new JwtTokenVerifier(secretKey,jwtConfig), JwtUsernameAndPasswordAuthenticationFilter.class)// tady přidám do cesty vlastní filtr po filtru
                 .authorizeRequests()
                 .antMatchers("/login/**") // - se kterými endpointy chci něco udělat
                 .permitAll() // - co s nimi chci udělat
